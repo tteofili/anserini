@@ -165,6 +165,10 @@
               <mainClass>io.anserini.ann.ApproximateNearestNeighborEval</mainClass>
               <id>ApproximateNearestNeighborEval</id>
             </program>
+            <program>
+              <mainClass>io.anserini.ann.ApproximateNearestNeighborMsMarcoEval</mainClass>
+              <id>ApproximateNearestNeighborMsMarcoEval</id>
+            </program>
           </programs>
         </configuration>
       </plugin>
