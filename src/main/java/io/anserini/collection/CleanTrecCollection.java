@@ -1,5 +1,5 @@
 /*
- * Anserini: A Lucene toolkit for replicable information retrieval research
+ * Anserini: A Lucene toolkit for reproducible information retrieval research
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package io.anserini.collection;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Path;
 
@@ -30,14 +31,26 @@ public class CleanTrecCollection extends DocumentCollection<CleanTrecCollection.
     this.path = path;
   }
 
+  public CleanTrecCollection() {
+  }
+
   @Override
   public FileSegment<Document> createFileSegment(Path p) throws IOException {
     return new Segment<>(p);
   }
 
+  @Override
+  public FileSegment<Document> createFileSegment(BufferedReader bufferedReader) throws IOException {
+    return new Segment<>(bufferedReader);
+  }
+
   public static class Segment<T extends Document> extends TrecCollection.Segment<T> {
     public Segment(Path path) throws IOException {
       super(path);
+    }
+
+    public Segment(BufferedReader bufferedReader) throws IOException {
+      super(bufferedReader);
     }
 
     @Override

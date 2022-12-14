@@ -1,5 +1,5 @@
 /*
- * Anserini: A Lucene toolkit for replicable information retrieval research
+ * Anserini: A Lucene toolkit for reproducible information retrieval research
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,9 @@ package io.anserini.collection;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.nio.file.FileVisitOption;
 import java.nio.file.FileVisitResult;
 import java.nio.file.FileVisitor;
 import java.nio.file.Files;
@@ -27,11 +29,13 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * <p>A static collection of documents, comprised of one or more {@link FileSegment}s.
@@ -93,6 +97,15 @@ public abstract class DocumentCollection<T extends SourceDocument> implements It
   public abstract FileSegment<T> createFileSegment(Path p) throws IOException;
 
   /**
+   * Creates a {@code FileSegment} from a path.
+   *
+   * @param bufferedReader raw BufferedReader
+   * @return {@code FileSegment} with the specified path
+   * @throws IOException if file access error encountered
+   */
+  public abstract FileSegment<T> createFileSegment(BufferedReader bufferedReader) throws IOException;
+
+  /**
    * An iterator over {@code FileSegment} for the {@code DocumentCollection} iterable.
    * A collection is comprised of one or more file segments.
    */
@@ -150,6 +163,18 @@ public abstract class DocumentCollection<T extends SourceDocument> implements It
     return discover(this.path);
   }
 
+  /**
+   * Returns the paths in the collection, taking into account sharding.
+   *
+   * @param currShard the current shard
+   * @param shardCount the total number of shards
+   * @return file segments in current shard
+   */
+  public List<Path> getSegmentPaths(int shardCount, int currShard) {
+    List<Path> segments = discover(this.path);
+    return segments.stream().filter(x -> x.toString().hashCode() % shardCount == currShard).collect(Collectors.toList());
+  }
+
   // Private method for walking a path.
   private List<Path> discover(Path p) {
     final List<Path> paths = new ArrayList<>();
@@ -159,13 +184,6 @@ public abstract class DocumentCollection<T extends SourceDocument> implements It
       public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
         Path name = file.getFileName();
         boolean shouldAdd = true;
-        if (Files.isSymbolicLink(file)) {
-          name = Files.readSymbolicLink(file);
-          if (Files.isDirectory(name)) {
-            paths.addAll(discover(name));
-            shouldAdd = false;
-          }
-        }
         if (name != null) {
           String fileName = name.toString();
           for (String s : skippedFileSuffix) {
@@ -224,7 +242,7 @@ public abstract class DocumentCollection<T extends SourceDocument> implements It
     };
 
     try {
-      Files.walkFileTree(p, fv);
+      Files.walkFileTree(p, EnumSet.of(FileVisitOption.FOLLOW_LINKS), Integer.MAX_VALUE, fv);
     } catch (IOException e) {
       LOG.error("IOException during file visiting", e);
     }

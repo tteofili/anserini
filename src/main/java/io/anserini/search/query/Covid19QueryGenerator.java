@@ -1,5 +1,5 @@
 /*
- * Anserini: A Lucene toolkit for replicable information retrieval research
+ * Anserini: A Lucene toolkit for reproducible information retrieval research
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 package io.anserini.search.query;
 
 import io.anserini.analysis.AnalyzerUtils;
-import io.anserini.index.IndexArgs;
+import io.anserini.index.Constants;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.QueryParser;
@@ -85,7 +85,7 @@ public class Covid19QueryGenerator extends QueryGenerator {
       builder.add(new TermQuery(new Term(field, t)), BooleanClause.Occur.SHOULD);
     }
 
-    QueryParser parser = new QueryParser(IndexArgs.CONTENTS, analyzer);
+    QueryParser parser = new QueryParser(Constants.CONTENTS, analyzer);
 
     try {
       List<Query> disjuncts = new ArrayList<>();

@@ -1,5 +1,5 @@
 /*
- * Anserini: A Lucene toolkit for replicable information retrieval research
+ * Anserini: A Lucene toolkit for reproducible information retrieval research
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,11 +26,6 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
-import io.anserini.index.generator.WashingtonPostGenerator;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.apache.lucene.document.Field;
-import org.apache.lucene.document.StringField;
 import org.jsoup.Jsoup;
 
 import java.io.BufferedReader;
@@ -59,14 +54,22 @@ import java.util.Optional;
  */
 public class WashingtonPostCollection extends DocumentCollection<WashingtonPostCollection.Document> {
 
-  public WashingtonPostCollection(Path path){
+  public WashingtonPostCollection(Path path) {
     this.path = path;
     this.allowedFileSuffix = new HashSet<>(Arrays.asList(".txt", ".jl"));
+  }
+
+  public WashingtonPostCollection() {
   }
 
   @Override
   public FileSegment<WashingtonPostCollection.Document> createFileSegment(Path p) throws IOException {
     return new Segment(p);
+  }
+
+  @Override
+  public FileSegment<WashingtonPostCollection.Document> createFileSegment(BufferedReader bufferedReader) throws IOException {
+    return new Segment(bufferedReader);
   }
 
   /**
@@ -80,6 +83,10 @@ public class WashingtonPostCollection extends DocumentCollection<WashingtonPostC
       super(path);
       this.fileName = path.toString();
       this.bufferedReader = new BufferedReader(new InputStreamReader(new FileInputStream(this.fileName), "utf-8"));
+    }
+
+    public Segment(BufferedReader bufferedReader) throws IOException {
+      super(bufferedReader);
     }
 
     @Override

@@ -1,5 +1,5 @@
 /*
- * Anserini: A Lucene toolkit for replicable information retrieval research
+ * Anserini: A Lucene toolkit for reproducible information retrieval research
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
-import java.lang.StringBuilder;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -30,15 +29,23 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-public class Iso19115Collection extends DocumentCollection<Iso19115Collection.Document>{
-  public Iso19115Collection(Path path){
+public class Iso19115Collection extends DocumentCollection<Iso19115Collection.Document> {
+  public Iso19115Collection(Path path) {
     this.path = path;
     this.allowedFileSuffix = new HashSet<>(Arrays.asList(".json", ".jsonl"));
   }
 
+  public Iso19115Collection() {
+  }
+
   @Override
-  public FileSegment<Iso19115Collection.Document> createFileSegment(Path p) throws IOException{
+  public FileSegment<Iso19115Collection.Document> createFileSegment(Path p) throws IOException {
     return new Segment(p);
+  }
+
+  @Override
+  public FileSegment<Iso19115Collection.Document> createFileSegment(BufferedReader bufferedReader) throws IOException {
+    return new Segment(bufferedReader);
   }
 
   public static class Segment extends FileSegment<Iso19115Collection.Document> {
@@ -51,9 +58,21 @@ public class Iso19115Collection extends DocumentCollection<Iso19115Collection.Do
       bufferedReader = new BufferedReader(new FileReader(path.toString()));
       ObjectMapper mapper = new ObjectMapper();
       iterator = mapper.readerFor(JsonNode.class).readValues(bufferedReader);
-      if(iterator.hasNext()){
+      if (iterator.hasNext()) {
         node = iterator.next();
-        if(node.isArray()) {
+        if (node.isArray()) {
+          iter = node.elements();
+        }
+      }
+    }
+
+    public Segment(BufferedReader bufferedReader) throws IOException {
+      super(bufferedReader);
+      ObjectMapper mapper = new ObjectMapper();
+      iterator = mapper.readerFor(JsonNode.class).readValues(bufferedReader);
+      if (iterator.hasNext()) {
+        node = iterator.next();
+        if (node.isArray()) {
           iter = node.elements();
         }
       }
@@ -61,11 +80,11 @@ public class Iso19115Collection extends DocumentCollection<Iso19115Collection.Do
 
     @Override
     public void readNext() throws NoSuchElementException {
-      if (node == null){
+      if (node == null) {
         throw new NoSuchElementException("JsonNode is empty");
       } else if (node.isObject()) {
         bufferedRecord = new Iso19115Collection.Document(node);
-        if(iterator.hasNext()) {
+        if (iterator.hasNext()) {
           node = iterator.next();
         } else {
           atEOF = true;

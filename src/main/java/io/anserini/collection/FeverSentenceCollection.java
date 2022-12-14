@@ -1,5 +1,5 @@
 /*
- * Anserini: A Lucene toolkit for replicable information retrieval research
+ * Anserini: A Lucene toolkit for reproducible information retrieval research
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,14 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class FeverSentenceCollection extends DocumentCollection<FeverSentenceCollection.Document> {
@@ -38,9 +45,17 @@ public class FeverSentenceCollection extends DocumentCollection<FeverSentenceCol
     this.allowedFileSuffix = Set.of(".jsonl");
   }
 
+  public FeverSentenceCollection() {
+  }
+
   @Override
   public FileSegment<Document> createFileSegment(Path p) throws IOException {
     return new Segment(p);
+  }
+
+  @Override
+  public FileSegment<Document> createFileSegment(BufferedReader bufferedReader) throws IOException {
+    return new Segment(bufferedReader);
   }
 
   /**
@@ -67,22 +82,31 @@ public class FeverSentenceCollection extends DocumentCollection<FeverSentenceCol
                   return null;
                 }
               })
-              .filter(Objects::nonNull)
-              .flatMap(this::flattenToSentences)
-              .iterator();
+          .filter(Objects::nonNull)
+          .flatMap(this::flattenToSentences)
+          .iterator();
 
       if (iterator.hasNext()) {
         node = iterator.next();
       }
     }
 
+    public Segment(BufferedReader bufferedReader) throws IOException {
+      super(bufferedReader);
+    }
+
     @Override
     protected void readNext() throws NoSuchElementException {
-      bufferedRecord = new FeverSentenceCollection.Document(node);
-      if (iterator.hasNext()) { // if JSONL contains more lines, we parse the next record
-        node = iterator.next();
-      } else { // if there is no more JSON object in the bufferedReader
+      if (node == null) {
+        bufferedRecord = new FeverSentenceCollection.Document(bufferedReader);
         atEOF = true;
+      } else {
+        bufferedRecord = new FeverSentenceCollection.Document(node);
+        if (iterator != null && iterator.hasNext()) { // if JSONL contains more lines, we parse the next record
+          node = iterator.next();
+        } else { // if there is no more JSON object in the bufferedReader
+          atEOF = true;
+        }
       }
     }
 
@@ -90,6 +114,9 @@ public class FeverSentenceCollection extends DocumentCollection<FeverSentenceCol
      * Extracts the sentences out of the "lines" field in the FEVER JSONL
      * files. Takes a JsonNode object for a single document as input and
      * returns a Stream of JsonNodes, one for each sentence.
+     *
+     * @param json object representing a single document
+     * @return stream of sentences
      */
     protected Stream<JsonNode> flattenToSentences(JsonNode json) {
       ObjectMapper mapper = new ObjectMapper();
@@ -139,6 +166,11 @@ public class FeverSentenceCollection extends DocumentCollection<FeverSentenceCol
       id = json.get("id").asText();
       content = json.get("text").asText();
       raw = json.get("lines").asText();
+    }
+
+    public Document(BufferedReader bufferedReader) {
+      content = bufferedReader.lines().collect(Collectors.joining("\n"));
+      raw = content;
     }
   }
 }

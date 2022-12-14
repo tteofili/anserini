@@ -1,5 +1,5 @@
 /*
- * Anserini: A Lucene toolkit for replicable information retrieval research
+ * Anserini: A Lucene toolkit for reproducible information retrieval research
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package io.anserini.util;
 
-import io.anserini.index.IndexArgs;
+import io.anserini.index.Constants;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.MultiTerms;
@@ -49,7 +49,7 @@ public class ExtractTopDfTerms {
     String output;
 
     @Option(name = "-field", metaVar = "[name]", usage = "field")
-    String field = IndexArgs.CONTENTS;
+    String field = Constants.CONTENTS;
 
     @Option(name = "-k", metaVar = "[num]", usage = "number of terms to keep")
     int topK = 100;

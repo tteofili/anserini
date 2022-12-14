@@ -1,48 +1,74 @@
-# -*- coding: utf-8 -*-
-"""
-Anserini: A toolkit for reproducible information retrieval research built on Lucene
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-"""
+#
+# Anserini: A Lucene toolkit for reproducible information retrieval research
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 
 from __future__ import print_function
-import os
-import itertools
-from subprocess import call, Popen, PIPE
-from multiprocessing import Pool
+
 import argparse
-import json
+import hashlib
+import itertools
 import logging
+import os
+import re
+import stat
+import tarfile
+import time
+from multiprocessing import Pool
+from subprocess import call, Popen, PIPE
+from urllib.request import urlretrieve
 
 import yaml
+from tqdm import tqdm
 
 logger = logging.getLogger('regression_test')
 logger.setLevel(logging.INFO)
 # create console handler with a higher log level
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter('%(asctime)s %(levelname)s  [python] %(message)s')
 ch.setFormatter(formatter)
 # add the handlers to the logger
 logger.addHandler(ch)
+
+# These are the locations where corpora can be found on specific machines.
+# There is no need to specify them on a per-file basis.
+CORPUS_ROOTS = [
+    '',                           # here, stored in this directory
+    '/tuna1/',                    # on tuna
+    '/store/',                    # on orca
+    '/collection',                # on hops (1st location)
+    '/',                          # on hops (2nd location)
+    '/scratch2/',                 # on damiano
+    '/System/Volumes/Data/store'  # for new organization of directories in macOS Monterey
+]
+
+INDEX_COMMAND = 'target/appassembler/bin/IndexCollection'
+INDEX_STATS_COMMAND = 'target/appassembler/bin/IndexReaderUtils'
+SEARCH_COMMAND = 'target/appassembler/bin/SearchCollection'
 
 
 def is_close(a, b, rel_tol=1e-09, abs_tol=0.0):
     return abs(a-b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
 
 
+def is_close_lucene8(a, b):
+    return abs(a-b) <= 0.001
+
+
 def check_output(command):
-    """Python 2.6 compatible subprocess.check_output."""
+    # Python 2.6 compatible subprocess.check_output
     process = Popen(command, shell=True, stdout=PIPE)
     output, err = process.communicate()
     if process.returncode == 0: # success
@@ -51,11 +77,10 @@ def check_output(command):
         raise RuntimeError("Command {0} running unsuccessfully".format(command))
 
 
-def get_index_path(yaml_data):
-    """Find the index path."""
+def construct_index_path(yaml_data):
     index_path = yaml_data['index_path']
     if not index_path or not os.path.exists(index_path):
-        for input_root in yaml_data['input_roots']:
+        for input_root in CORPUS_ROOTS:
             index_path = os.path.join(input_root, yaml_data['index_path'])
             if os.path.exists(index_path):
                 break
@@ -63,204 +88,290 @@ def get_index_path(yaml_data):
 
 
 def construct_indexing_command(yaml_data, args):
-    """Construct the Anserini indexing command.
-
-    Args:
-        yaml_data (dict): The yaml config read from config file.
-        args: the command-line arguments.
-
-    Returns:
-        (:obj:`list` of :obj:`str`): the command as a list that can be executed by calling subprocess.call(command)
-    """
-    logger.info('='*10+'Indexing'+'='*10)
-
-    # Determine the input collection path, either from the command line,
-    # or by checking various locations specified in the YAML.
-    collection_path = None
-    if args.collection_path != '':
-        if  os.path.exists(args.collection_path):
-            collection_path = args.collection_path
+    corpus_path = None
+    if args.corpus_path:
+        if os.path.exists(args.corpus_path):
+            corpus_path = args.corpus_path
     else:
-        for input_root in yaml_data['input_roots']:
-            collection_path = os.path.join(input_root, yaml_data['input'])
-            if os.path.exists(collection_path):
+        for input_root in CORPUS_ROOTS:
+            corpus_path = os.path.join(input_root, yaml_data['corpus_path'])
+            if os.path.exists(corpus_path):
                 break
 
-    if not collection_path:
-        raise RuntimeError("Unable to find input collection path!")
+    if not corpus_path:
+        raise RuntimeError("Unable to find the corpus!")
 
     # Determine the number of indexing threads, either from the command line,
     # or reading the YAML config.
-    if args.indexing_threads != -1:
-        threads = args.indexing_threads
+    if args.index_threads != -1:
+        threads = args.index_threads
     else:
-        threads = yaml_data['threads']
+        threads = yaml_data['index_threads']
 
     if not os.path.exists('indexes'):
         os.makedirs('indexes')
 
     index_command = [
-        os.path.join(yaml_data['root'], yaml_data['index_command']),
-        '-collection', yaml_data['collection'],
-        '-generator', yaml_data['generator'],
+        INDEX_COMMAND,
+        '-collection', yaml_data['collection_class'],
+        '-generator', yaml_data['generator_class'],
         '-threads', str(threads),
-        '-input', collection_path,
-        '-index', yaml_data['index_path']
+        '-input', corpus_path,
+        '-index', yaml_data['index_path'],
+        yaml_data['index_options']
     ]
-    index_command.extend(yaml_data['index_options'])
+
     return index_command
 
 
-def verify_index(yaml_data, build_index=True, dry_run=False):
-    """Verify index statistics (e.g., total documents, total terms) so that we know we are searching
-    against the correct index.
-
-    Args:
-        yaml_data (dict): the yaml config
-    """
-    logger.info('='*10+'Verifying Index'+'='*10)
-    index_path = get_index_path(yaml_data)
-    logger.info('[Index]: ' + index_path)
-    index_utils_command = [
-        os.path.join(yaml_data['root'], yaml_data['index_utils_command']),
-        '-index', index_path, '-stats'
-    ]
-    if dry_run:
-        logger.info(index_utils_command)
-    else:
-        out = check_output(' '.join(index_utils_command)).decode('utf-8').split('\n')
-        for line in out:
-            stat = line.split(':')[0]
-            if stat in yaml_data['index_stats']:
-                value = int(line.split(':')[1])
-                if value != yaml_data['index_stats'][stat]:
-                    print('{}: expected={}, actual={}'.format(stat, yaml_data['index_stats'][stat], value))
-                assert value == yaml_data['index_stats'][stat]
-                logger.info(line)
-        logger.info('='*10+'Verifying Index Succeed'+'='*10)
+def construct_runfile_path(corpus, id, model_name):
+    return os.path.join('runs/', 'run.{0}.{1}.{2}'.format(corpus, id, model_name))
 
 
-def construct_ranking_command(output_root, yaml_data, build_index=True):
-    """Construct the Anserini ranking commands for regression tests.
-
-    Args:
-        output_root (string): location of folder for run files
-        yaml_data (dict): the yaml config
-        build_index (bool): if the index is not built by this script then read the index path from config
-
-    Returns:
-        (:obj:`list` of :obj:`list` of :obj:`str`): the ranking commands as several commands that can be
-        executed by calling subprocess.call(command)
-    """
+def construct_search_commands(yaml_data):
     ranking_commands = [
         [
-            os.path.join(yaml_data['root'], yaml_data['search_command']),
-            '-topicreader', yaml_data['topic_reader'],
-            '-index', get_index_path(yaml_data),
-            ' '.join(model['params']),
-            '-topics', os.path.join(yaml_data['root'], yaml_data['topic_root'], topic['path']),
-            '-output', os.path.join(output_root, 'run.{0}.{1}.{2}'.format(yaml_data['name'], model['name'], topic['path'])),
-        ] + (yaml_data['search_options'] if 'search_options' in yaml_data else [])
-        for (model, topic) in list(itertools.product(yaml_data['models'], yaml_data['topics']))
+            SEARCH_COMMAND,
+            '-index', construct_index_path(yaml_data),
+            '-topics', os.path.join(yaml_data['topic_root'], topic_set['path']),
+            '-topicreader', topic_set['topic_reader'] if 'topic_reader' in topic_set and topic_set['topic_reader'] else yaml_data['topic_reader'],
+            '-output', construct_runfile_path(yaml_data['corpus'], topic_set['id'], model['name']),
+            model['params']
+        ]
+        for (model, topic_set) in list(itertools.product(yaml_data['models'], yaml_data['topics']))
     ]
     return ranking_commands
 
+def construct_convert_commands(yaml_data):
+    converting_commands = [
+        [
+            conversion['command'],
+            '--index', construct_index_path(yaml_data),
+            '--topics', topic_set['id'],
+            '--input', construct_runfile_path(yaml_data['corpus'], topic_set['id'], model['name']) + conversion['in_file_ext'],
+            '--output', construct_runfile_path(yaml_data['corpus'], topic_set['id'], model['name']) + conversion['out_file_ext'],
+            conversion['params'] if 'params' in conversion and conversion['params'] else '',
+            topic_set['convert_params'] if 'convert_params' in topic_set and topic_set['convert_params'] else '',
+        ]
+        for (model, topic_set, conversion) in list(itertools.product(yaml_data['models'], yaml_data['topics'], yaml_data['conversions']))
+    ]
+    return converting_commands
 
-def evaluate_and_verify(output_root, yaml_data, fail_eval, dry_run):
-    """Evaluate run files and verify results stored in the yaml config.
+def evaluate_and_verify(yaml_data, dry_run):
+    fail_str = '\033[91m[FAIL]\033[0m '
+    ok_str = '   [OK] '
+    okish_str = '  \033[94m[OK*]\033[0m '
+    failures = False
 
-    Args:
-        output_root (string): location of folder for run files
-        yaml_data (dict): the yaml config
-        dry_run (bool): if True, print out commands without actually running them
-    """
-    logger.info('='*10+'Verifying Results'+'='*10)
-    success = True
+    logger.info('='*10 + ' Verifying Results: ' + yaml_data['corpus'] + ' ' + '='*10)
     for model in yaml_data['models']:
-        for i, topic in enumerate(yaml_data['topics']):
-            for eval in yaml_data['evals']:
+        for i, topic_set in enumerate(yaml_data['topics']):
+            for metric in yaml_data['metrics']:
                 eval_cmd = [
-                  os.path.join(yaml_data['root'], eval['command']),
-                  ' '.join(eval['params']) if eval['params'] else '',
-                  os.path.join(yaml_data['root'], yaml_data['qrels_root'], topic['qrel']),
-                  os.path.join(output_root, 'run.{0}.{1}.{2}'.format(yaml_data['name'], model['name'], topic['path']))
+                  os.path.join(metric['command']), metric['params'] if 'params' in metric and metric['params'] else '',
+                  os.path.join(yaml_data['qrels_root'], topic_set['qrel']) if 'qrel' in topic_set and topic_set['qrel'] else '',
+                  construct_runfile_path(yaml_data['corpus'], topic_set['id'], model['name']) + (yaml_data['conversions'][-1]['out_file_ext'] if 'conversions' in yaml_data and yaml_data['conversions'][-1]['out_file_ext'] else '')
                 ]
                 if dry_run:
                     logger.info(' '.join(eval_cmd))
                     continue
 
-                out = [line for line in check_output(' '.join(eval_cmd)).decode('utf-8').split('\n') if line.strip()][-1]
+                out = [line for line in
+                       check_output(' '.join(eval_cmd)).decode('utf-8').split('\n') if line.strip()][-1]
                 if not out.strip():
                     continue
-                eval_out = out.strip().split(eval['separator'])[eval['parse_index']]
-                expected = round(model['results'][eval['metric']][i], eval['metric_precision'])
-                actual = round(float(eval_out), eval['metric_precision'])
-                res = {
-                    'collection': yaml_data['name'],
-                    'model': model['name'],
-                    'topic': topic['name'],
-                    'metric': eval['metric'],
-                    'expected': expected,
-                    'actual': actual
-                }
+                eval_out = out.strip().split(metric['separator'])[metric['parse_index']]
+                expected = round(model['results'][metric['metric']][i], metric['metric_precision'])
+                actual = round(float(eval_out), metric['metric_precision'])
+                result_str = 'expected: {0:.4f} actual: {1:.4f} - metric: {2:<8} model: {3} topics: {4}'.format(
+                    expected, actual, metric['metric'], model['name'], topic_set['id'])
                 if is_close(expected, actual):
-                    logger.info(json.dumps(res, sort_keys=True))
+                    logger.info(ok_str + result_str)
                 else:
-                    success = False
-                    logger.error('!'*5+json.dumps(res, sort_keys=True)+'!'*5)
-                    if fail_eval:
-                        assert False
-    if success:
-        logger.info("All Tests Passed!")
+                    if args.lucene8 and is_close_lucene8(expected, actual):
+                        logger.info(okish_str + result_str)
+                    else:
+                        logger.error(fail_str + result_str)
+                        failures = True
+
+    end = time.time()
+
+    if not dry_run:
+        if failures:
+            logger.info(f'\033[91mFailed tests!\033[0m Total elapsed time: {end - start:.0f}s')
+        else:
+            logger.info(f'All Tests Passed! Total elapsed time: {end - start:.0f}s')
 
 
-def ranking_atom(cmd):
+def run_search(cmd):
     logger.info(' '.join(cmd))
-    if not args.dry_run:
-        call(' '.join(cmd), shell=True)
+    call(' '.join(cmd), shell=True)
+
+def run_convert(cmd):
+    logger.info(' '.join(cmd))
+    call(' '.join(cmd), shell=True)
+
+# https://gist.github.com/leimao/37ff6e990b3226c2c9670a2cd1e4a6f5
+class TqdmUpTo(tqdm):
+    def update_to(self, b=1, bsize=1, tsize=None):
+        """
+        b  : int, optional
+            Number of blocks transferred so far [default: 1].
+        bsize  : int, optional
+            Size of each block (in tqdm units) [default: 1].
+        tsize  : int, optional
+            Total size (in tqdm units). If [default: None] remains unchanged.
+        """
+        if tsize is not None:
+            self.total = tsize
+        self.update(b * bsize - self.n)  # will also set self.n = b * bsize
+
+
+# For large files, we need to compute MD5 block by block. See:
+# https://stackoverflow.com/questions/1131220/get-md5-hash-of-big-files-in-python
+def compute_md5(file, block_size=2**20):
+    m = hashlib.md5()
+    with open(file, 'rb') as f:
+        while True:
+            buf = f.read(block_size)
+            if not buf:
+                break
+            m.update(buf)
+    return m.hexdigest()
+
+
+def download_url(url, save_dir, local_filename=None, md5=None, force=False, verbose=True):
+    # If caller does not specify local filename, figure it out from the download URL:
+    if not local_filename:
+        filename = url.split('/')[-1]
+        filename = re.sub('\\?dl=1$', '', filename)  # Remove the Dropbox 'force download' parameter
+    else:
+        # Otherwise, use the specified local_filename:
+        filename = local_filename
+
+    destination_path = os.path.join(save_dir, filename)
+
+    if verbose:
+        logger.info(f'Downloading {url} to {destination_path}...')
+
+    # Check to see if file already exists, if so, simply return (quietly) unless force=True, in which case we remove
+    # destination file and download fresh copy.
+    if os.path.exists(destination_path):
+        if verbose:
+            logger.info(f'{destination_path} already exists!')
+        if not force:
+            if verbose:
+                logger.info(f'Skipping download.')
+            return destination_path
+        if verbose:
+            logger.info(f'force=True, removing {destination_path}; fetching fresh copy...')
+        os.remove(destination_path)
+
+    with TqdmUpTo(unit='B', unit_scale=True, unit_divisor=1024, miniters=1, desc=filename) as t:
+        urlretrieve(url, filename=destination_path, reporthook=t.update_to)
+
+    if md5:
+        md5_computed = compute_md5(destination_path)
+        assert md5_computed == md5, f'{destination_path} does not match checksum! Expecting {md5} got {md5_computed}.'
+
+    return destination_path
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Regression Tests')
-    parser.add_argument('--anserini_root', default='', help='Anserini path')
-    parser.add_argument('--collection', required=True, help='collection key in yaml')
-    parser.add_argument('--index', dest='index', action='store_true', help='build index from scratch')
-    parser.add_argument('--no_retrieval', dest='no_retrieval', action='store_true', help='do not perform retrieval')
-    parser.add_argument('--dry_run', dest='dry_run', action='store_true',
-                        help='output commands without actual execution')
-    parser.add_argument('--n', dest='parallelism', type=int, default=4, help='number of parallel threads for ranking')
-    parser.add_argument('--fail_eval', dest='fail_eval', action='store_true',
-                        help='fail when any run does not match expected effectiveness')
-    parser.add_argument('--output_root', default='runs', help='output directory of all results')
-
-    parser.add_argument('--indexing_threads', type=int, default=-1, help='override number of indexing threads from YAML')
-    parser.add_argument('--collection_path', default='', help='override collection input path from YAML')
+    parser = argparse.ArgumentParser(description='Run Anserini regression tests.')
+    parser.add_argument('--regression', required=True, help='Name of the regression test.')
+    parser.add_argument('--corpus-path', dest='corpus_path', default='', help='Override corpus path from YAML')
+    parser.add_argument('--download', dest='download', action='store_true', help='Build index.')
+    parser.add_argument('--index', dest='index', action='store_true', help='Build index.')
+    parser.add_argument('--index-threads', type=int, default=-1, help='Override number of indexing threads from YAML')
+    parser.add_argument('--verify', dest='verify', action='store_true', help='Verify index statistics.')
+    parser.add_argument('--search', dest='search', action='store_true', help='Search and verify results.')
+    parser.add_argument('--search-pool', dest='search_pool', type=int, default=4,
+                        help='Number of ranking runs to execute in parallel.')
+    parser.add_argument('--convert-pool', dest='convert_pool', type=int, default=4,
+                        help='Number of converting runs to execute in parallel.')
+    parser.add_argument('--dry-run', dest='dry_run', action='store_true',
+                        help='Output commands without actual execution.')
+    parser.add_argument('--lucene8', dest='lucene8', action='store_true', help='Enable more lenient score matching for Lucene 8 index compatibility.')
     args = parser.parse_args()
 
-    if not os.path.exists(args.output_root):
-        os.makedirs(args.output_root)
-
-    # TODO: A better way might be using dataclasses as the model to hold the data
-    # https://docs.python.org/3/library/dataclasses.html
-    with open(os.path.join(args.anserini_root,
-                           'src/main/resources/regression/{}.yaml'.format(args.collection))) as f:
+    start = time.time()
+    with open('src/main/resources/regression/{}.yaml'.format(args.regression)) as f:
         yaml_data = yaml.safe_load(f)
 
-    yaml_data['root'] = args.anserini_root
+    if args.download:
+        logger.info('='*10 + ' Downloading Corpus ' + '='*10)
+        if not yaml_data['download_url']:
+            raise ValueError('Corpus download URL known!')
+        url = yaml_data['download_url']
+        download_url(url, 'collections', md5=yaml_data['download_checksum'])
 
-    # Decide if we're going to index from scratch. If not, use pre-stored index at known location.
+        filename = url.split('/')[-1]
+        local_tarball = os.path.join('collections', filename)
+        logger.info(f'Extracting {local_tarball}...')
+        tarball = tarfile.open(local_tarball)
+        tarball.extractall('collections')
+        tarball.close()
+
+        # e.g., MS MARCO V2: need to rename the corpus
+        if 'download_corpus' in yaml_data:
+            src = os.path.join('collections', yaml_data['download_corpus'])
+            dest = os.path.join('collections', yaml_data['corpus'])
+            logger.info(f'Renaming {src} to {dest}')
+            os.chmod(src, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
+            os.rename(src, dest)
+
+        path = os.path.join('collections', yaml_data['corpus'])
+        logger.info(f'Corpus path is {path}')
+        args.corpus_path = path
+
+    # Build indexes.
     if args.index:
+        logger.info('='*10 + ' Indexing ' + '='*10)
         indexing_command = ' '.join(construct_indexing_command(yaml_data, args))
         logger.info(indexing_command)
         if not args.dry_run:
             call(indexing_command, shell=True)
 
-    verify_index(yaml_data, args.index, args.dry_run)
+    # Verify index statistics.
+    if args.verify:
+        logger.info('='*10 + ' Verifying Index ' + '='*10)
+        index_utils_command = [INDEX_STATS_COMMAND, '-index', construct_index_path(yaml_data), '-stats']
+        verification_command = ' '.join(index_utils_command)
+        logger.info(verification_command)
+        if not args.dry_run:
+            out = check_output(' '.join(index_utils_command)).decode('utf-8').split('\n')
+            for line in out:
+                stat = line.split(':')[0]
+                if stat in yaml_data['index_stats']:
+                    value = int(line.split(':')[1])
+                    if value != yaml_data['index_stats'][stat]:
+                        print('{}: expected={}, actual={}'.format(stat, yaml_data['index_stats'][stat], value))
+                    assert value == yaml_data['index_stats'][stat]
+                    logger.info(line)
+            logger.info('Index statistics successfully verified!')
 
-    if not args.no_retrieval:
-        logger.info('='*10+'Ranking'+'='*10)
-        run_cmds = construct_ranking_command(args.output_root, yaml_data, args.index)
-        p = Pool(args.parallelism)
-        p.map(ranking_atom, run_cmds)
+    # Search and verify results.
+    if args.search:
+        logger.info('='*10 + ' Ranking ' + '='*10)
+        if args.lucene8:
+            logger.info('Enabling Lucene 8 index compatibility.')
+        search_cmds = construct_search_commands(yaml_data)
+        if args.dry_run:
+            for cmd in search_cmds:
+                logger.info(' '.join(cmd))
+        else:
+            with Pool(args.search_pool) as p:
+                p.map(run_search, search_cmds)
 
-    evaluate_and_verify(args.output_root, yaml_data, args.fail_eval, args.dry_run)
+        if 'conversions' in yaml_data and yaml_data['conversions']:
+            logger.info('='*10 + ' Converting ' + '='*10)
+            convert_cmds = construct_convert_commands(yaml_data)
+            if args.dry_run:
+                for cmd in convert_cmds:
+                    logger.info(' '.join(cmd))
+            else:
+                with Pool(args.convert_pool) as p:
+                    p.map(run_convert, convert_cmds)
+
+        evaluate_and_verify(yaml_data, args.dry_run)

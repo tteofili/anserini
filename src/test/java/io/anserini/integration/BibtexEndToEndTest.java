@@ -1,5 +1,5 @@
 /*
- * Anserini: A Lucene toolkit for replicable information retrieval research
+ * Anserini: A Lucene toolkit for reproducible information retrieval research
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,15 +17,15 @@
 package io.anserini.integration;
 
 import io.anserini.collection.BibtexCollection;
-import io.anserini.index.IndexArgs;
+import io.anserini.index.IndexCollection;
 import io.anserini.index.generator.BibtexGenerator;
 
 import java.util.Map;
 
 public class BibtexEndToEndTest extends EndToEndTest {
   @Override
-  protected IndexArgs getIndexArgs() {
-    IndexArgs indexArgs = createDefaultIndexArgs();
+  protected IndexCollection.Args getIndexArgs() {
+    IndexCollection.Args indexArgs = createDefaultIndexArgs();
 
     indexArgs.input = "src/test/resources/sample_docs/bib/acl";
     indexArgs.collectionClass = BibtexCollection.class.getSimpleName();
@@ -37,13 +37,15 @@ public class BibtexEndToEndTest extends EndToEndTest {
   @Override
   protected void setCheckIndexGroundTruth() {
     docCount = 3;
-    documents.put("article-id", Map.of(
+    docFieldCount = -1; // Documents may have variable number of fields, so don't bother checking.
+
+    referenceDocs.put("article-id", Map.of(
         "contents", "this is the title. ",
         "raw", "this is the title. "));
-    documents.put("inproceedings-id", Map.of(
+    referenceDocs.put("inproceedings-id", Map.of(
         "contents", "this is the title. this is the abstract",
         "raw", "this is the title. this is the abstract"));
-    documents.put("proceedings-id", Map.of(
+    referenceDocs.put("proceedings-id", Map.of(
         "contents", "this is the title. ",
         "raw", "this is the title. "));
 

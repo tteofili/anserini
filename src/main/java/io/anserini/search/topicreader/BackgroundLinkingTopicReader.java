@@ -1,5 +1,5 @@
 /*
- * Anserini: A Lucene toolkit for replicable information retrieval research
+ * Anserini: A Lucene toolkit for reproducible information retrieval research
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,13 +21,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import io.anserini.analysis.AnalyzerUtils;
 import io.anserini.collection.WashingtonPostCollection;
-import io.anserini.index.IndexArgs;
+import io.anserini.index.Constants;
 import io.anserini.index.IndexReaderUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexableField;
-import org.apache.lucene.index.Term;
 import org.jsoup.Jsoup;
 
 import java.io.BufferedReader;
@@ -103,14 +102,11 @@ public class BackgroundLinkingTopicReader extends TopicReader<Integer> {
     return map;
   }
   
-  /**
-   * Extracts the top <i>k</i> terms from document in terms of tf-idf.
-   */
   public static List<String> extractTerms(IndexReader reader, String docid, int k, Analyzer analyzer)
       throws IOException {
     // Fetch the raw JSON representation of the document.
     IndexableField rawField = reader.document(
-        IndexReaderUtils.convertDocidToLuceneDocid(reader, docid)).getField(IndexArgs.RAW);
+        IndexReaderUtils.convertDocidToLuceneDocid(reader, docid)).getField(Constants.RAW);
     if (rawField == null) {
       throw new RuntimeException("Raw documents not stored!");
     }

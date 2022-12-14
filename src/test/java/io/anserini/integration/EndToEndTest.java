@@ -1,5 +1,5 @@
 /*
- * Anserini: A Lucene toolkit for replicable information retrieval research
+ * Anserini: A Lucene toolkit for reproducible information retrieval research
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,9 @@
 
 package io.anserini.integration;
 
-import io.anserini.index.IndexArgs;
 import io.anserini.index.IndexCollection;
 import io.anserini.index.IndexReaderUtils;
-import io.anserini.search.SearchArgs;
+import io.anserini.index.NotStoredException;
 import io.anserini.search.SearchCollection;
 import org.apache.commons.io.FileUtils;
 import org.apache.lucene.index.CheckIndex;
@@ -27,9 +26,9 @@ import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.tests.util.LuceneTestCase;
+import org.apache.lucene.tests.util.TestRuleLimitSysouts;
 import org.apache.lucene.util.IOUtils;
-import org.apache.lucene.util.LuceneTestCase;
-import org.apache.lucene.util.TestRuleLimitSysouts;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -44,6 +43,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 
@@ -53,7 +53,7 @@ import java.util.Random;
 public abstract class EndToEndTest extends LuceneTestCase {
   private static final Random RANDOM = new Random();
 
-  protected Map<String, SearchArgs> testQueries = new HashMap<>();
+  protected Map<String, SearchCollection.Args> testQueries = new HashMap<>();
 
   protected String indexPath;
 
@@ -61,7 +61,9 @@ public abstract class EndToEndTest extends LuceneTestCase {
   protected String topicFile;
   protected String searchOutputPrefix = "e2eTestSearch";
   protected Map<String, String[]> referenceRunOutput = new HashMap<>();
-  protected Map<String, Map<String, String>> documents = new HashMap<>();
+  protected Map<String, Map<String, String>> referenceDocs = new HashMap<>();
+  protected Map<String, Map<String, List<String>>> referenceDocTokens = new HashMap<>();
+  protected Map<String, List<String>>  queryTokens = new HashMap<>();
 
   // These are the sources of truth
   protected int fieldNormStatusTotalFields;
@@ -70,7 +72,9 @@ public abstract class EndToEndTest extends LuceneTestCase {
   protected int termIndexStatusTotPos;
   protected int storedFieldStatusTotalDocCounts;
   protected int storedFieldStatusTotFields;
-  protected int docCount;
+
+  protected int docCount;       // Total number of docs.
+  protected int docFieldCount;  // Each doc should have this number of fields.
 
   // List of files for cleanup in @After.
   protected List<File> cleanup = new ArrayList<>();
@@ -78,6 +82,8 @@ public abstract class EndToEndTest extends LuceneTestCase {
   @Override
   @Before
   public void setUp() throws Exception {
+    Locale.setDefault(Locale.US);
+
     // We're going to build an index for every test.
     super.setUp();
     indexPath = "test-index" + RANDOM.nextInt(100000);
@@ -85,13 +91,14 @@ public abstract class EndToEndTest extends LuceneTestCase {
     cleanup.clear();
 
     // Subclasses will override this method and change their own settings.
-    IndexArgs indexArgs = getIndexArgs();
+    IndexCollection.Args indexArgs = getIndexArgs();
 
     // Note, since we want to test end-to-end, we're going to generate command-line parameters to feed back into main.
     List<String> args = new ArrayList<>(List.of(
         "-index", indexPath,
         "-input", indexArgs.input,
         "-threads", "2",
+        "-language", indexArgs.language,
         "-collection", indexArgs.collectionClass,
         "-generator", indexArgs.generatorClass));
 
@@ -138,14 +145,32 @@ public abstract class EndToEndTest extends LuceneTestCase {
       args.add("-quiet");
     }
 
+    if (indexArgs.shardCount > 1) {
+      args.add("-shard.count");
+      args.add(Integer.toString(indexArgs.shardCount));
+      args.add("-shard.current");
+      args.add(Integer.toString(indexArgs.shardCurrent));
+    }
+
+    if (indexArgs.pretokenized) {
+      args.add("-pretokenized");
+    }
+
+    if (indexArgs.fields != null) {
+      args.add("-fields");
+      for (String field: indexArgs.fields) {
+        args.add(field);
+      }
+    }
+
     IndexCollection.main(args.toArray(new String[args.size()]));
   }
 
   // Set the indexing args. Subclasses will override this method and change their own settings.
-  abstract IndexArgs getIndexArgs();
+  abstract IndexCollection.Args getIndexArgs();
 
-  protected IndexArgs createDefaultIndexArgs() {
-    IndexArgs args = new IndexArgs();
+  protected IndexCollection.Args createDefaultIndexArgs() {
+    IndexCollection.Args args = new IndexCollection.Args();
 
     args.storePositions = true;
     args.storeDocvectors = true;
@@ -183,10 +208,29 @@ public abstract class EndToEndTest extends LuceneTestCase {
 
     for (int i=0; i<reader.maxDoc(); i++) {
       String collectionDocid = IndexReaderUtils.convertLuceneDocidToDocid(reader, i);
-      assertEquals(documents.get(collectionDocid).get("raw"),
-          IndexReaderUtils.documentRaw(reader, collectionDocid));
-      assertEquals(documents.get(collectionDocid).get("contents"),
-          IndexReaderUtils.documentContents(reader, collectionDocid));
+      if (referenceDocs.get(collectionDocid).get("raw") != null) {
+        assertEquals(referenceDocs.get(collectionDocid).get("raw"), IndexReaderUtils.documentRaw(reader, collectionDocid));
+      }
+      if (referenceDocs.get(collectionDocid).get("contents") != null) {
+        assertEquals(referenceDocs.get(collectionDocid).get("contents"), IndexReaderUtils.documentContents(reader, collectionDocid));
+      }
+
+      // Make sure each doc has the right number of fields.
+      // If the docFieldCount == -1, it means that documents may have variable number of fields (e.g., AclAnthology),
+      // so don't bother testing.
+      if (docFieldCount != -1) {
+        assertEquals(docFieldCount, IndexReaderUtils.document(reader, collectionDocid).getFields().size());
+      }
+
+      // Check list of tokens by calling document vector.
+      if (!referenceDocTokens.isEmpty()){
+        try {
+          List<String> docTokens = IndexReaderUtils.getDocumentTokens(reader, collectionDocid);
+          assertEquals(referenceDocTokens.get(collectionDocid).get("contents"), docTokens);
+        } catch (NotStoredException e) {
+          e.printStackTrace();
+        }
+      }
     }
     reader.close();
 
@@ -231,8 +275,8 @@ public abstract class EndToEndTest extends LuceneTestCase {
   // Subclasses will override this method and provide the ground truth.
   protected abstract void setCheckIndexGroundTruth();
 
-  protected SearchArgs createDefaultSearchArgs() {
-    SearchArgs searchArgs = new SearchArgs();
+  protected SearchCollection.Args createDefaultSearchArgs() {
+    SearchCollection.Args searchArgs = new SearchCollection.Args();
     // required
     searchArgs.index = this.indexPath;
     searchArgs.output = this.searchOutputPrefix + this.topicReader;
@@ -255,12 +299,13 @@ public abstract class EndToEndTest extends LuceneTestCase {
     setSearchGroundTruth();
 
     try {
-      for (Map.Entry<String, SearchArgs> entry : testQueries.entrySet()) {
+      for (Map.Entry<String, SearchCollection.Args> entry : testQueries.entrySet()) {
         SearchCollection searcher = new SearchCollection(entry.getValue());
         searcher.runTopics();
         searcher.close();
+
         checkRankingResults(entry.getKey(), entry.getValue().output);
-        // Remember to cleanup run files.
+        // Remember to clean up run files.
         cleanup.add(new File(entry.getValue().output));
       }
     } catch (Exception e) {

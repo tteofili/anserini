@@ -1,5 +1,5 @@
 /*
- * Anserini: A Lucene toolkit for replicable information retrieval research
+ * Anserini: A Lucene toolkit for reproducible information retrieval research
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,7 @@
 package io.anserini.ltr;
 
 import io.anserini.analysis.AnalyzerUtils;
-import io.anserini.index.IndexArgs;
-import io.anserini.ltr.feature.FeatureExtractor;
+import io.anserini.index.Constants;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;
@@ -26,22 +25,26 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
 import org.apache.lucene.document.StringField;
-import org.apache.lucene.index.*;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexOptions;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
-import org.apache.lucene.util.LuceneTestCase;
+import org.apache.lucene.tests.util.LuceneTestCase;
 import org.junit.After;
 import org.junit.Before;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 /**
  * This class will contain setup and teardown code for testing feature extractors
  */
 abstract public class BaseFeatureExtractorTest<T> extends LuceneTestCase {
-  protected static final String TEST_FIELD_NAME = IndexArgs.CONTENTS;
+  protected static final String TEST_FIELD_NAME = Constants.CONTENTS;
   protected static final Analyzer TEST_ANALYZER = new EnglishAnalyzer();
   protected static final Analyzer NON_STOP_TEST_ANALYZER = new WhitespaceAnalyzer();
 
@@ -64,7 +67,7 @@ abstract public class BaseFeatureExtractorTest<T> extends LuceneTestCase {
     Field field = new Field(TEST_FIELD_NAME, testText, fieldType);
     Document doc = new Document();
     doc.add(field);
-    doc.add(new StringField(IndexArgs.ID, docId, Field.Store.YES));
+    doc.add(new StringField(Constants.ID, docId, Field.Store.YES));
     testWriter.addDocument(doc);
     testWriter.commit();
   }

@@ -1,10 +1,32 @@
+/*
+ * Anserini: A Lucene toolkit for reproducible information retrieval research
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.anserini.search;
 
 import org.junit.Test;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.io.PrintStream;
+import java.util.Locale;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class SearchCollectionTest {
@@ -86,5 +108,60 @@ public class SearchCollectionTest {
     assertTrue(err.toString().contains("cannot be used with the option"));
 
     restoreStderr();
+  }
+
+  @Test
+  public void testSearchLucene9() throws Exception {
+    SearchCollection.main(
+        new String[] {"-index", "src/test/resources/prebuilt_indexes/lucene9-index.sample_docs_trec_collection2/",
+            "-topics", "src/test/resources/sample_topics/Trec",
+            "-topicreader", "Trec", "-output", "run.test", "-bm25"});
+    check("run.test", new String[]{
+        "1 Q0 DOC222 1 0.343200 Anserini",
+        "1 Q0 TREC_DOC_1 2 0.333400 Anserini",
+        "1 Q0 WSJ_1 3 0.068700 Anserini"});
+    new File("run.test").delete();
+
+    SearchCollection.main(
+        new String[] {"-index", "src/test/resources/prebuilt_indexes/lucene9-index.sample_docs_json_collection_tokenized/",
+            "-topics", "src/test/resources/sample_topics/json_topics1.tsv",
+            "-topicreader", "TsvInt", "-output", "run.test", "-pretokenized", "-impact"});
+    check("run.test", new String[]{
+        "1 Q0 2000001 1 4.000000 Anserini",});
+    new File("run.test").delete();
+  }
+
+  @Test
+  public void testSearchLucene8() throws Exception {
+    SearchCollection.main(
+        new String[] {"-index", "src/test/resources/prebuilt_indexes/lucene8-index.sample_docs_trec_collection2/",
+            "-topics", "src/test/resources/sample_topics/Trec",
+            "-topicreader", "Trec", "-output", "run.test", "-bm25"});
+    check("run.test", new String[]{
+        "1 Q0 DOC222 1 0.343192 Anserini",
+        "1 Q0 TREC_DOC_1 2 0.333445 Anserini",
+        "1 Q0 WSJ_1 3 0.068654 Anserini"});
+    new File("run.test").delete();
+
+    SearchCollection.main(
+        new String[] {"-index", "src/test/resources/prebuilt_indexes/lucene8-index.sample_docs_json_collection_tokenized/",
+            "-topics", "src/test/resources/sample_topics/json_topics1.tsv",
+            "-topicreader", "TsvInt", "-output", "run.test", "-pretokenized", "-impact"});
+    check("run.test", new String[]{
+        "1 Q0 2000001 1 4.000000 Anserini",});
+    new File("run.test").delete();
+  }
+
+  protected void check(String output, String[] ref) throws IOException {
+    BufferedReader br = new BufferedReader(new FileReader(output));
+
+    int cnt = 0;
+    String s;
+    while ((s = br.readLine()) != null) {
+      assertEquals(ref[cnt], s);
+      cnt++;
+    }
+
+    assertEquals(cnt, ref.length);
   }
 }

@@ -3,6 +3,262 @@
 The following change log details commits to regression tests that alter effectiveness and the addition of new regression tests.
 This documentation is useful for figuring why results may have changed over time.
 
+
+### October 29, 2022
+
++ commit [`2d13a2`](https://github.com/castorini/anserini/commit/2d13a25b2068ca5c2b9838bb297faca8c10603c9) (10/29/2022)
+
+Added TREC 2022 DL Track regressions (for passages).
+
+### October 27, 2022
+
++ commit [`6d8601`](https://github.com/castorini/anserini/commit/6d8601a24410567e07f7daf704bef558ff678050) (10/27/2022)
+
+Added TREC 2022 NeuCLIR Track regressions.
+
+### October 25, 2022
+
++ commit [`debf2b`](https://github.com/castorini/anserini/commit/debf2ba4aa82db9af74d77b4b68fca543ad79f35) (10/25/2022)
+
+Fixed bug in HC4 doc translation regressions: documents are in English, so we should be using the English analyzer.
+
+### October 23, 2022
+
++ commit [`f94285`](https://github.com/castorini/anserini/commit/f94285abf322a4ec982d9eccacece97a2a65dba4) (10/23/2022)
++ commit [`7cb701`](https://github.com/castorini/anserini/commit/7cb7016d91b7e002ab4f9f47edc389832a427e4a) (10/20/2022)
+
+Added regressions for MIRACL dev set
+
+### October 17, 2022
+
++ commit [`7b244e`](https://github.com/castorini/anserini/commit/7b244eeb10cdd6b215519e15131c01cc1e3b4328) (10/17/2022)
+
+Fixed broken `batch_search` implementation for RM3 (or any feedback approach), originally reported in [castorini/pyserini#831](https://github.com/castorini/pyserini/issues/831).
+Also fixed `BM25prf` to be thread-safe.
+Incidentally, these changes fixed a bug in `backgroundlinking18`, `backgroundlinking19`, `backgroundlinking20`.
+Regression scores updated.
+
+### October 4, 2022
+
++ commit [`c7addf`](https://github.com/castorini/anserini/commit/c7addf4528c817baebbf8c2d9be27c38d041e066) (10/03/2022)
++ commit [`4a9a97`](https://github.com/castorini/anserini/commit/4a9a97c9666da69db54ccdf308f17ebc606dd1e0) (10/01/2022)
++ commit [`b5ecc5`](https://github.com/castorini/anserini/commit/b5ecc5aff79ddfc82b175f6bd3048f5039f0480f) (09/26/2022)
+
+The two changes referenced here are:
+
++ Added regressions for MS MARCO V1 passage/document (including DL19 and DL20) based on BERT WordPiece tokenization using `HuggingFaceTokenizerAnalyzer`; added in [#1969](https://github.com/castorini/anserini/pull/1969), ref issue [#1978](https://github.com/castorini/anserini/issues/1978).
++ Updated Mr. Tydi Telugu regressions following the addition of an Analyzer for Telugu in Lucene 9; ref issue [#1982](https://github.com/castorini/anserini/issues/1982).
+
+### September 22, 2022
+
++ commit [`a60e84`](https://github.com/castorini/anserini/commit/a60e842e9b47eca0ad5266659081fe1180c96b7f) (09/18/2022)
++ commit [`3dfce5`](https://github.com/castorini/anserini/commit/3dfce53e6985a9c05eea30a4350da165824fa7f2) (09/15/2022)
+
+Two major changes with regression impact:
+
++ Upgraded to `fastutil` 8.5.8 and fixed longstanding `FeatureVector` issue ([#840](https://github.com/castorini/anserini/issues/840)).
++ Upgraded to `jsoup` 1.15.3 to fix security vulnerability.
+
+### August 15, 2022
+
++ commit [`cc6337`](https://github.com/castorini/anserini/commit/cc6337c582a9f3e8bdf6e4512f7fa56b45a50de2) (08/15/2022)
+
+Updated all regressions to pass with Lucene 9.
+Effectiveness figures changed for the following:
+
++ `clef06-fr`
++ `hc4-neuclir22-ru`
++ `hc4-v1.0-ru`
++ `mrtydi-v1.1-fi`
++ `mrtydi-v1.1-ja`
++ `mrtydi-v1.1-ru`
++ `msmarco-doc`
+
+Index statistics for many other regressions changed (e.g., total terms), but these changes did not alter effectiveness figures (other than those identified above).
+Note that after updating Pyserini to Lucene 9, `wikipedia-dpr-100w-bm25` passed also.
+
+### July 23, 2022
+
++ commit [`d25495`](https://github.com/castorini/anserini/commit/d25495b6a5982ee9e64c99e7bbe9979774bfc284) (07/23/2022)
++ commit [`a1608a`](https://github.com/castorini/anserini/commit/a1608aca4063de6b34f0b9b96a3639a3ed5b13c8) (07/23/2022)
+
+Added regressions for HC4 test topics on NeuCLIR22 corpora, both query translation and document translation variants.
+
+### July 13, 2022
+
++ commit [`500e87`](https://github.com/castorini/anserini/commit/500e872d594a86cbf01adae644479f74a4b4af2d) (07/13/2022)
+
+Added regression for Wikipedia retrieval for QA (from DPR).
+
+### June 17, 2022
+
++ commit [`f59283`](https://github.com/castorini/anserini/commit/f59283297e79045a81d6ff84eebb116ce842736c) (06/17/2022)
+
+Added regressions for BEIR, uniCOIL (noexp).
+
+### June 16, 2022
+
++ commit [`d71a11`](https://github.com/castorini/anserini/commit/d71a118faa17a29d34431e1d5c1cfae2d567e64c) (06/16/2022)
++ commit [`d2fbe6`](https://github.com/castorini/anserini/commit/d2fbe67b0f17545c0dd2edc4a445b8df9dcf80fc) (06/15/2022)
+
+Added regressions for HC4 corpora.
+
+### May 26, 2022
+
++ commit [`fc542b`](https://github.com/castorini/anserini/commit/fc542b5fa5dd67fe53e6110d8933b2d403f8e80e) (05/26/2022)
++ commit [`fc050d`](https://github.com/castorini/anserini/commit/fc050dedb16f37f9d17f2fb03f5958a350daea42) (05/21/2022)
+
+Added regressions for MS MARCO V1 passage, 8-bit quantized BM25 (dev, DL19, DL20).
+
+### May 24, 2022
+
++ commit [`30c997`](https://github.com/castorini/anserini/commit/30c9974f495a06c94d576d0e9c2c5861515e0e19) (05/24/2022)
++ commit [`d457c8`](https://github.com/castorini/anserini/commit/d457c8815d64f8df51b2bebac46bc14aae5153a8) (05/21/2022)
+
+Added regressions for BEIR, flat indexing with WordPiece tokens.
+
+### April 28, 2022
+
++ commit [`9b2dd5`](https://github.com/castorini/anserini/commit/9b2dd5f5e524ce56e5784cb73404d39926982733) (04/28/2022)
+
+Above is the final commit of work stretching back approximately a month that added a complete set of regressions for BEIR, covering "flat" indexing, multifield indexing, and the SPLADE-distil CoCodenser Medium model.
+
+### April 21, 2022
+
++ commit [`5e0437`](https://github.com/castorini/anserini/commit/5e0437b6d5fc6e7119aafe8f6bad923be3d3a0ec) (04/21/2022)
+
+Added regressions for "v2" of doc segmented uniCOIL on MS MARCO V2; cf [#1853](https://github.com/castorini/anserini/issues/1853).
+
+### April 8, 2022
+
++ commit [`3624dc`](https://github.com/castorini/anserini/commit/3624dc875e90e87661ca22b80d5a687a0c173354) (04/08/2022)
+
+Added MS MARCO V1 passage/document regressions based BERT WordPiece tokenization.
+
+### March 2, 2022
+
++ commit [`41b65d`](https://github.com/castorini/anserini/commit/41b65d9fcb82d787faf4ca937f81faca82ead8c2) (03/02/2022)
+
+Added regressions for uniCOIL noexp on MS MARCO v1 corpora.
+
+### February 7, 2022
+
++ commit [`51c386`](https://github.com/castorini/anserini/commit/51c386a22f5ca8b749ccb0eb200c3ee135e504eb) (02/07/2022)
+
+Added uniCOIL regressions for MS MARCO V1: missing regressions for uniCOIL passage on DL19, DL20, and brand new regressions for uniCOIL segmented doc on dev, DL19, and DL20.
+
+### February 5, 2022
+
++ commit [`4c33f1`](https://github.com/castorini/anserini/commit/4c33f137f81c9e6fef030befd2a6e089cfe0ab78) (02/05/2022)
+
+Added uniCOIL (with d2q-T5 expansions) regressions on MS MARCO V2 (both dev/dev2 queries as well as TREC 2021 DL Track).
+Tweaked noexp regressions to make consistent.
+
+### January 20, 2022
+
++ commit [`1be47b`](https://github.com/castorini/anserini/commit/1be47b95cbc722fff1b883a6b91a92632a00461e) (01/20/2022)
+
+Added MS MARCO (V2) {doc, segmented doc, passage, augmented passage} regressions for doc2query-T5 expansions (both dev/dev2 queries as well as TREC 2021 DL Track).
+
+### January 8, 2022
+
++ commit [`6fcb89`](https://github.com/castorini/anserini/commit/6fcb896c61e2b8cf2f235def3e95dda5fe4cd2fc) (01/08/2022)
++ commit [`f0502c`](https://github.com/castorini/anserini/commit/f0502cc7cf4978b266b6427a594e6c57e524fd8e) (11/16/2022)
+
+Rebuilt all MS MARCO (V1) doc regressions from scratch to fix segmentation issues described [here](experiments-msmarco-doc-doc2query-details.md).
+
+### December 15, 2021
+
++ commit [`151404`](https://github.com/castorini/anserini/commit/15140448d6b6dbf12d7461fc4d90cfb3f4529f69) (12/15/2021)
++ commit [`aee51a`](https://github.com/castorini/anserini/commit/aee51adefe9d2b8f178df37abc5b236b185c5bab) (12/05/2021)
+
+Added regressions for Mr.TyDi (v1.1).
+
+### December 13, 2021
+
++ commit [`64f4d1`](https://github.com/castorini/anserini/commit/64f4d1e226e5e478ebb5cec93f3e4705d09d4326) (12/13/2021)
++ commit [`12149f`](https://github.com/castorini/anserini/commit/12149f87457f4eeff3818a76be1331f5a8a60c75) (12/09/2021)
+
+Expanded regressions for TREC Disks 4 &amp; 5.
+
+### November 25, 2021
+
++ commit [`47685b`](https://github.com/castorini/anserini/commit/47685b1c42375c1a46404effdd866dc01c424358) (11/25/2021)
++ commit [`1c5f64`](https://github.com/castorini/anserini/commit/1c5f640ee566c74d45f9c558f518b188e6473748) (11/18/2021)
+
+Added regressions for MS MARCO V2 (dev2) and TREC 2021 DL Track queries; add uniCOIL noexp zero-shot results.
+
+### October 18, 2021
+
++ commit [`828d05`](https://github.com/castorini/anserini/commit/828d05f77e3e0655c059cba07e576c67a9378c77) (10/18/2021)
++ commit [`cf5c4f`](https://github.com/castorini/anserini/commit/cf5c4fb9e8d2d8a8d883b0f0f9b778908cb49a6d) (10/16/2021)
+
+Refactored regressions for DeepImpact and uniCOIL on MS MARCO passage, added SPLADEv2.
+
+### October 9, 2021
+
++ commit [`f8b7cd`](https://github.com/castorini/anserini/commit/f8b7cd9f8d1d11ca8b5415cf868b60676aff5472) (10/09/2021)
+
+Major refactoring of MS MARCO V2 naming conventions.
+
+### September 5, 2021
+
++ commit [`f79fb6`](https://github.com/castorini/anserini/commit/f79fb67845b4b68b8c177eacb5832c209847dc29) (09/05/2021)
+
+Added regressions for DeepImpact and uniCOIL on MS MARCO passage.
+
+### September 4, 2021
+
++ commit [`112438`](https://github.com/castorini/anserini/commit/112438c85f642c3b6b5006af68f82457a43d602f) (09/04/2021)
+
+Added regressions for MS MARCO V2 corpora, standard BM25 + PRF configurations w/ default parameters:
+
++ raw passage corpus, augmented passage corpus
++ raw doc corpus, segmented doc corpus
+
+### September 2, 2021
+
++ commit [`f86e4e`](https://github.com/castorini/anserini/commit/f86e4e193eee806e935720c2ea8c549babb02c53) (09/02/2021)
+
+Upgraded jsoup from v1.8.3 to v1.14.2 to address a security vulnerability.
+Minor changes to the following regressions: `backgroundlinking18`, `backgroundlinking19`, `backgroundlinking20`, `core18`, `cw09b`, `cw12`, `cw12b13`, `disk12`, `gov2`, `wt10g`.
+
+### June 14, 2021
+
++ commit [`b58c85`](https://github.com/castorini/anserini/commit/b58c8559b4fc473e857b9ce5ca73523d8d017b41) (06/14/2021)
+
+Overhauled regressions for MS MARCO {passage, doc} and DL {19, 20}:
++ MS MARCO passage + {doc2query, docTTTTTquery}
++ MS MARCO doc {per-doc, per-passage} x {doc2query, docTTTTTquery}
++ {DL19, DL20} passage + {doc2query, docTTTTTquery}
++ {DL19, DL20} doc {per-doc, per passage} x {doc2query, docTTTTTquery}
+
+### April 13, 2021
+
++ commit [`868afe`](https://github.com/castorini/anserini/commit/868afe9ec07fa477ce817d7a43dd5723cb4c8a86) (04/13/2021)
+
+Updated regressions for the MS MARCO doc ranking task, we now have the complete cross product of {doc indexing, passage indexing} and {no expansion, expansion}.
+Regressions now use tuned parameters.
+
+### March 30, 3021
+
++ commit [`c75c63`](https://github.com/castorini/anserini/commit/c75c63b0d625c88049952fc1c72360f2b6bb07c6) (03/30/2021)
+
+Added regressions for Anserini submissions to TREC 2020 News Track, background linking task.
+
+### March 19, 2021
+
++ commit [`e9af6e`](https://github.com/castorini/anserini/commit/e9af6eca16290ed222f23fcaa9cb1547f8a10d38) (03/19/2021)
+
+Added regressions for Anserini submissions to TREC 2020 Deep Learning Track: passage ranking (also with docTTTTTquery) and document ranking (also with per-document docTTTTTquery).
+
+### February 24, 2021
+
++ commit [`90d3aa`](https://github.com/castorini/anserini/commit/90d3aa0099990cf26a54afa8458d03b30b3ace02) (02/24/2021)
+
+Fixed bug where multi-line TREC topic titles weren't being fully parsed ([#1482](https://github.com/castorini/anserini/pull/1482)).
+Affects [regressions for Disks 1 & 2](https://github.com/castorini/anserini/blob/master/docs/regressions-disk12.md).
+
 ### November 16, 2020
 
 + commit [`f87c94`](https://github.com/castorini/anserini/commit/f87c945fd1c1e4174468194c72e3c05688dc45dd) (11/16/2020)
@@ -78,7 +334,7 @@ Resolves inconsistent tie-breaking for BM25prf that leads to non-deterministic r
 + commit [`1217d47`](https://github.com/castorini/anserini/commit/1217d475c88cc4782ff3056506afc43d71bf31fb) (8/9/2019)
 + commit [`75dfaa6`](https://github.com/castorini/anserini/commit/75dfaa6989ed36f76422d7be0d9d424d85705ee3) (8/9/2019)
 
-Added new Doc2query regression `car17v2.0-doc2query` to replicate [Nogueira et al. (arXiv 2019)](https://arxiv.org/abs/1904.08375) on the TREC 2017 Complex Answer Retrieval (CAR) section-level passage retrieval task (v2.0).
+Added new doc2query regression `car17v2.0-doc2query` to reproduce [Nogueira et al. (arXiv 2019)](https://arxiv.org/abs/1904.08375) on the TREC 2017 Complex Answer Retrieval (CAR) section-level passage retrieval task (v2.0).
 Added +Ax and +PRF regressions with both tuned and default BM25 parameters for MS MARCO passage ranking task.
 
 ### August 5, 2019
@@ -92,7 +348,7 @@ Added +Ax and +PRF regressions with both tuned and default BM25 parameters for M
 + commit [`86be3d2`](https://github.com/castorini/anserini/commit/86be3d21ea8bdf9309ca5f85362c2782c3898a19) (6/20/2019)
 + commit [`b656da3`](https://github.com/castorini/anserini/commit/b656da3ed0ec3fa385dfdb9df0d153cd9a78bd7d) (6/20/2019)
 
-Added new Doc2query regression `msmarco-passage-doc2query` to replicate [Nogueira et al. (arXiv 2019)](https://arxiv.org/abs/1904.08375) on the MS MARCO passage ranking task.
+Added new doc2query regression `msmarco-passage-doc2query` to reproduce [Nogueira et al. (arXiv 2019)](https://arxiv.org/abs/1904.08375) on the MS MARCO passage ranking task.
 Added tuned BM25 parameters to `msmarco-doc` regression.
 Associated documentation updated.
 

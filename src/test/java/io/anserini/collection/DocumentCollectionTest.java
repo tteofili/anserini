@@ -1,5 +1,5 @@
 /*
- * Anserini: A Lucene toolkit for replicable information retrieval research
+ * Anserini: A Lucene toolkit for reproducible information retrieval research
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,19 +16,24 @@
 
 package io.anserini.collection;
 
-import org.apache.lucene.util.LuceneTestCase;
+import org.apache.lucene.tests.util.LuceneTestCase;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.Reader;
+import java.io.StringReader;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Logger;
 
 public abstract class DocumentCollectionTest<T extends SourceDocument> extends LuceneTestCase {
   Path collectionPath;
@@ -46,6 +51,10 @@ public abstract class DocumentCollectionTest<T extends SourceDocument> extends L
   @Before
   public void setUp() throws Exception {
     super.setUp();
+
+    // There's a non-deterministic bug that occurs when Arabic numerals in docids get "localized", and hence fail
+    // to match expected docids. This makes sure it doesn't happen.
+    Locale.setDefault(Locale.US);
 
     segmentPaths = new HashSet<>();
     segmentDocCounts = new HashMap<>();
@@ -141,6 +150,47 @@ public abstract class DocumentCollectionTest<T extends SourceDocument> extends L
   }
 
   abstract void checkDocument(SourceDocument doc, Map<String, String> expected);
+
+  @Test
+  public void checkDocumentParser() {
+    checkRawtoContent();
+  }
+
+  public void checkRawtoContent() {
+    if (collection == null)
+      return;
+
+    collection.iterator().forEachRemaining(d -> {
+      d.iterator().forEachRemaining(doc -> {
+        String raw = doc.raw();
+
+        if (raw != null) {
+          Reader inputString = new StringReader(raw);
+          BufferedReader bufferedReader = new BufferedReader(inputString);
+          try {
+            FileSegment<T> segment = collection.createFileSegment(bufferedReader);
+            String content = null;
+            for (SourceDocument sd : segment) {
+              content = sd.contents();
+              // should have only one doc.
+              break;
+            }
+
+            if (content != null) {
+              assertEquals(doc.contents(), content);
+            } else {
+              assertEquals(doc.contents(), "");
+            }
+            segment.close();
+          } catch (IOException | RuntimeException e) {
+            // some doc might not have contents, eg. GeoRiver
+            e.printStackTrace();
+          }
+        }
+      });
+    });
+  }
+
 
   @After
   public void tearDown() throws Exception {

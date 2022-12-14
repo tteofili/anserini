@@ -1,5 +1,5 @@
 /*
- * Anserini: A Lucene toolkit for replicable information retrieval research
+ * Anserini: A Lucene toolkit for reproducible information retrieval research
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -77,5 +77,11 @@ public class Cord19ParagraphCollectionTest extends DocumentCollectionTest<Cord19
     Cord19ParagraphCollection.Document covidDoc = (Cord19ParagraphCollection.Document) doc;
 
     assertEquals(expected.get("id"), covidDoc.id());
+  }
+
+  @Override
+  public void checkRawtoContent() {
+    // no content info stored in raw field in this collection, skip the test
+    assertEquals("", "");
   }
 }

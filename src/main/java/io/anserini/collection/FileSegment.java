@@ -1,5 +1,5 @@
 /*
- * Anserini: A Lucene toolkit for replicable information retrieval research
+ * Anserini: A Lucene toolkit for reproducible information retrieval research
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,6 +60,10 @@ public abstract class FileSegment<T extends SourceDocument> implements Iterable<
 
   public FileSegment(Path segmentPath) {
     this.path = segmentPath;
+  }
+
+  public FileSegment(BufferedReader bufferedReader) {
+    this.bufferedReader = bufferedReader;
   }
 
   public final int getSkippedCount() {

@@ -1,5 +1,5 @@
 /*
- * Anserini: A Lucene toolkit for replicable information retrieval research
+ * Anserini: A Lucene toolkit for reproducible information retrieval research
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 
 /**
@@ -66,8 +67,11 @@ import java.util.zip.GZIPInputStream;
 public class TrecCollection extends DocumentCollection<TrecCollection.Document> {
   public TrecCollection(Path path) {
     this.path = path;
-    this.skippedFilePrefix = new HashSet<>(Arrays.asList("readme"));
-    this.skippedDir = new HashSet<>(Arrays.asList("cr", "dtd", "dtds"));
+    this.skippedFilePrefix = new HashSet<>(Arrays.asList("readme", "README"));
+    this.skippedDir = new HashSet<>(Arrays.asList("cr", "CR", "dtd", "DTD", "dtds", "DTDS"));
+  }
+
+  public TrecCollection() {
   }
 
   @Override
@@ -75,13 +79,19 @@ public class TrecCollection extends DocumentCollection<TrecCollection.Document> 
     return new Segment<>(p);
   }
 
+  @Override
+  public FileSegment<Document> createFileSegment(BufferedReader bufferedReader) throws IOException {
+    return new Segment<>(bufferedReader);
+  }
+
   /**
    * A file in a classic TREC <i>ad hoc</i> document collection, typically containing multiple documents.
    *
    * @param <T> type of the document
    */
-  public static class Segment<T extends Document> extends FileSegment<T>{
+  public static class Segment<T extends Document> extends FileSegment<T> {
     private static final Pattern ID_PATTERN = Pattern.compile(".*id=\\\"([^\\\"]+)\\\".*");
+    protected String rawContent = null; // raw content from buffered string
 
     public Segment(Path path) throws IOException {
       super(path);
@@ -101,9 +111,20 @@ public class TrecCollection extends DocumentCollection<TrecCollection.Document> 
       }
     }
 
+    public Segment(BufferedReader bufferedReader) throws IOException {
+      super(bufferedReader);
+      rawContent = bufferedReader.lines().collect(Collectors.joining("\n"));
+    }
+
     @Override
     public void readNext() throws IOException, ParseException {
-      readNextRecord(bufferedReader);
+      if (rawContent != null) {
+        bufferedRecord = (T) createNewDocument();
+        bufferedRecord.raw = rawContent;
+        rawContent = null;
+      } else {
+        readNextRecord(bufferedReader);
+      }
     }
 
     private void readNextRecord(BufferedReader reader) throws IOException {

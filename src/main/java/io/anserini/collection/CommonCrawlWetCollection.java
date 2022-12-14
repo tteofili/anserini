@@ -1,5 +1,5 @@
 /*
- * Anserini: A Lucene toolkit for replicable information retrieval research
+ * Anserini: A Lucene toolkit for reproducible information retrieval research
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,13 +12,14 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package io.anserini.collection;
 
+import org.apache.commons.io.input.ReaderInputStream;
 import org.apache.logging.log4j.LogManager;
 
+import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.IOException;
@@ -28,6 +29,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.Locale;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 
 /**
@@ -41,9 +43,17 @@ public class CommonCrawlWetCollection extends DocumentCollection<CommonCrawlWetC
     this.allowedFileSuffix = Set.of(".warc.wet.gz");
   }
 
+  public CommonCrawlWetCollection() {
+  }
+
   @Override
   public FileSegment<CommonCrawlWetCollection.Document> createFileSegment(Path p) throws IOException {
     return new Segment(p);
+  }
+
+  @Override
+  public FileSegment<CommonCrawlWetCollection.Document> createFileSegment(BufferedReader bufferedReader) throws IOException {
+    return new Segment(bufferedReader);
   }
 
   /**
@@ -52,15 +62,26 @@ public class CommonCrawlWetCollection extends DocumentCollection<CommonCrawlWetC
   public static class Segment extends FileSegment<CommonCrawlWetCollection.Document> {
 
     protected DataInputStream stream;
+    private String rawContent = null; // raw content from buffered string
 
     public Segment(Path path) throws IOException {
       super(path);
       this.stream = new DataInputStream(new GZIPInputStream(Files.newInputStream(path, StandardOpenOption.READ)));
     }
 
+    public Segment(BufferedReader bufferedReader) throws IOException {
+      super(bufferedReader);
+      rawContent = bufferedReader.lines().collect(Collectors.joining("\n"));
+    }
+
     @Override
     public void readNext() throws IOException, NoSuchElementException {
-      bufferedRecord = Document.readNextWarcRecord(stream);
+      if (rawContent != null) {
+        bufferedRecord = Document.readNextWarcRecord(rawContent);
+        rawContent = null;
+      } else {
+        bufferedRecord = Document.readNextWarcRecord(stream);
+      }
     }
 
     @Override
@@ -89,7 +110,7 @@ public class CommonCrawlWetCollection extends DocumentCollection<CommonCrawlWetC
     /**
      * Reads in a WARC record from a data input stream.
      *
-     * @param in      the input stream
+     * @param in the input stream
      * @return a WARC record (or null if EOF)
      * @throws IOException if error encountered reading from stream
      */
@@ -109,10 +130,26 @@ public class CommonCrawlWetCollection extends DocumentCollection<CommonCrawlWetC
     }
 
     /**
+     * Reads in a WARC record from a data input stream.
+     *
+     * @param rawContent the input raw string
+     * @return a WARC record (or null if EOF)
+     */
+    public static Document readNextWarcRecord(String rawContent) {
+      byte[] recordContent = rawContent.getBytes();
+
+      Document retRecord = new Document();
+      retRecord.setHeader("");
+      retRecord.setContent(recordContent);
+      return retRecord;
+    }
+
+    /**
      * Performs the actual heavy lifting of reading in the next WARC record.
      *
      * @param in the data input stream
      * @param headerBuffer a blank string buffer to contain the WARC header
+     * @param headerEndKey delimiter of the end of the header
      * @return the content bytes (with the headerBuffer populated)
      * @throws IOException if error encountered reading from stream
      */

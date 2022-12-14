@@ -1,5 +1,5 @@
 /*
- * Anserini: A Lucene toolkit for replicable information retrieval research
+ * Anserini: A Lucene toolkit for reproducible information retrieval research
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,6 @@ import org.apache.lucene.index.Term;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
-import org.apache.lucene.util.Accountable;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -157,14 +156,5 @@ public class CloneIndexTest extends IndexerTestBase {
       return fieldsProducer.size();
     }
 
-    @Override
-    public long ramBytesUsed() {
-      return fieldsProducer.ramBytesUsed();
-    }
-
-    @Override
-    public Collection<Accountable> getChildResources() {
-      return fieldsProducer.getChildResources();
-    }
   }
 }
