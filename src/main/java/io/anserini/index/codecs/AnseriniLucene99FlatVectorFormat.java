@@ -16,9 +16,10 @@
 
 package io.anserini.index.codecs;
 
-import org.apache.lucene.codecs.FlatVectorsFormat;
-import org.apache.lucene.codecs.FlatVectorsReader;
-import org.apache.lucene.codecs.FlatVectorsWriter;
+import org.apache.lucene.codecs.hnsw.FlatVectorScorerUtil;
+import org.apache.lucene.codecs.hnsw.FlatVectorsFormat;
+import org.apache.lucene.codecs.hnsw.FlatVectorsReader;
+import org.apache.lucene.codecs.hnsw.FlatVectorsWriter;
 import org.apache.lucene.codecs.KnnFieldVectorsWriter;
 import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.KnnVectorsReader;
@@ -42,7 +43,7 @@ public class AnseriniLucene99FlatVectorFormat extends KnnVectorsFormat {
 
   static final String NAME = "AnseriniLucene99FlatVectorFormat";
 
-  private final FlatVectorsFormat format = new Lucene99FlatVectorsFormat();
+  private final FlatVectorsFormat format = new Lucene99FlatVectorsFormat(FlatVectorScorerUtil.getLucene99FlatVectorsScorer());
 
   /**
    * Sole constructor
