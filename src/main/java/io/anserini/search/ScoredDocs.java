@@ -88,7 +88,7 @@ public class ScoredDocs {
         TopDocs rs = searcher.search(q, 1);
 
         // If for whatever reason we can't find the doc, then skip.
-        if (rs.totalHits.value > 0) {
+        if (rs.totalHits.value() > 0) {
           lucene_documents.add(storedFields.document(rs.scoreDocs[0].doc));
           lucene_docids.add(rs.scoreDocs[0].doc);
           score.add(Float.valueOf(qrelsDocScorePair.getValue().floatValue()));

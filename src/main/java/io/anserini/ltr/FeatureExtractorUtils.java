@@ -130,7 +130,7 @@ public class FeatureExtractorUtils {
       for(String docId: docIds) {
         Query q = new TermQuery(new Term(Constants.ID, docId));
         TopDocs topDocs = searcher.search(q, 1);
-        if (topDocs.totalHits.value == 0) {
+        if (topDocs.totalHits.value() == 0) {
           throw new IOException(String.format("Document Id %s expected but not found in index", docId));
         }
         ScoreDoc hit = topDocs.scoreDocs[0];
@@ -172,7 +172,7 @@ public class FeatureExtractorUtils {
       for(String docId: docIds) {
           Query q = new TermQuery(new Term(Constants.ID, docId));
           TopDocs topDocs = searcher.search(q, 1);
-          if (topDocs.totalHits.value == 0) {
+          if (topDocs.totalHits.value() == 0) {
             throw new IOException(String.format("Document Id %s expected but not found in index", docId));
           }
 

@@ -491,7 +491,7 @@ public class IndexReaderUtils {
 
   /**
    * Returns the Lucene {@link Document} based on a collection docid. The method is named to be consistent with Lucene's
-   * {@link IndexReader#document(int)}, contra Java's standard method naming conventions.
+   * {@link IndexReader#storedFields#document(int)}, contra Java's standard method naming conventions.
    *
    * @param reader index reader
    * @param docid collection docid
@@ -509,7 +509,7 @@ public class IndexReaderUtils {
   /**
    * Fetches the Lucene {@link Document} based on some field other than its unique collection docid. For example,
    * scientific articles might have DOIs. The method is named to be consistent with Lucene's
-   * {@link IndexReader#document(int)}, contra Java's standard method naming conventions.
+   * {@link IndexReader#storedFields#document(int)}, contra Java's standard method naming conventions.
    *
    * @param reader index reader
    * @param field field
@@ -537,7 +537,7 @@ public class IndexReaderUtils {
 
   /**
    * Returns the "raw" field of a document based on a collection docid. The method is named to be consistent with
-   * Lucene's {@link IndexReader#document(int)}, contra Java's standard method naming conventions.
+   * Lucene's {@link IndexReader#storedFields#document(int)}, contra Java's standard method naming conventions.
    *
    * @param reader index reader
    * @param docid collection docid
@@ -554,7 +554,7 @@ public class IndexReaderUtils {
 
   /**
    * Returns the "contents" field of a document based on a collection docid. The method is named to be consistent with
-   * Lucene's {@link IndexReader#document(int)}, contra Java's standard method naming conventions.
+   * Lucene's {@link IndexReader#storedFields#document(int)}, contra Java's standard method naming conventions.
    *
    * @param reader index reader
    * @param docid collection docid
@@ -831,7 +831,7 @@ public class IndexReaderUtils {
 
     FieldInfos fieldInfos = FieldInfos.getMergedFieldInfos(reader);
     for (FieldInfo fi : fieldInfos) {
-      description.put(fi.name, "(" + "indexOption: " + fi.getIndexOptions() + ", hasVectors: " + fi.hasVectors() + ")");
+      description.put(fi.name, "(" + "indexOption: " + fi.getIndexOptions() + ", hasVectorValues: " + fi.hasVectorValues() + ")");
     }
 
     return description;

@@ -16,9 +16,9 @@
 
 package io.anserini.index.codecs;
 
-import org.apache.lucene.codecs.FlatVectorsFormat;
-import org.apache.lucene.codecs.FlatVectorsReader;
-import org.apache.lucene.codecs.FlatVectorsWriter;
+import org.apache.lucene.codecs.hnsw.FlatVectorsFormat;
+import org.apache.lucene.codecs.hnsw.FlatVectorsReader;
+import org.apache.lucene.codecs.hnsw.FlatVectorsWriter;
 import org.apache.lucene.codecs.KnnFieldVectorsWriter;
 import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.KnnVectorsReader;
@@ -61,6 +61,11 @@ public class AnseriniLucene99ScalarQuantizedVectorsFormat extends KnnVectorsForm
     return new AnseriniLucene99ScalarQuantizedVectorReader(format.fieldsReader(state));
   }
 
+  @Override
+  public int getMaxDimensions(String fieldName) {
+    return format.getMaxDimensions(fieldName);
+  }
+
   public static class AnseriniLucene99ScalarQuantizedVectorWriter extends KnnVectorsWriter {
 
     private final FlatVectorsWriter writer;
@@ -72,7 +77,7 @@ public class AnseriniLucene99ScalarQuantizedVectorsFormat extends KnnVectorsForm
 
     @Override
     public KnnFieldVectorsWriter<?> addField(FieldInfo fieldInfo) throws IOException {
-      return writer.addField(fieldInfo, null);
+      return writer.addField(fieldInfo);
     }
 
     @Override
@@ -150,11 +155,6 @@ public class AnseriniLucene99ScalarQuantizedVectorsFormat extends KnnVectorsForm
     @Override
     public void close() throws IOException {
       reader.close();
-    }
-
-    @Override
-    public long ramBytesUsed() {
-      return reader.ramBytesUsed();
     }
   }
 }

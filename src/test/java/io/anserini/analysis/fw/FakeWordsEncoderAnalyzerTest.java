@@ -89,7 +89,7 @@ public class FakeWordsEncoderAnalyzerTest {
       simQuery.add(new Term(fieldName, token));
     }
     TopDocs topDocs = searcher.search(simQuery, 1);
-    assertEquals(1, topDocs.totalHits.value);
+    assertEquals(1, topDocs.totalHits.value());
   }
 
   private byte[] toByteArray(List<Double> values) {
