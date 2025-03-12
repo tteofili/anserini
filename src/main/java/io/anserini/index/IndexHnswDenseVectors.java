@@ -130,13 +130,13 @@ public final class IndexHnswDenseVectors extends AbstractIndexer {
         if (args.optimize) {
           // If we're going to merge down into a single segment at the end, skip intermediate merges,
           // since they are a waste of time.
-          mergePolicy.setMaxMergeAtOnce(256);
+          //mergePolicy.sesetMaxMergeAtOnce(256);
           mergePolicy.setSegmentsPerTier(256);
         } else {
           mergePolicy.setFloorSegmentMB(1024);
           mergePolicy.setMaxMergedSegmentMB(args.maxMergedSegmentSize);
           mergePolicy.setSegmentsPerTier(args.segmentsPerTier);
-          mergePolicy.setMaxMergeAtOnce(args.maxMergeAtOnce);
+          //mergePolicy.setMaxMergeAtOnce(args.maxMergeAtOnce);
         }
         config.setMergePolicy(mergePolicy);
       }
